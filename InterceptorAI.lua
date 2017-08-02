@@ -3,9 +3,9 @@ InterceptorWeaponSlot = 5
 IncomingMissiles = {}
 TargetedMissiles = {}
 function Update(I)
-	InterceptorLaunchers = GetLaunchers(I)
 	IncomingMissiles = GetWarnings(I)
-	
+	LaunchedMissileCount = MissileCount(I)
+	I:LogToHud(LaunchedMissileCount)
 
 	PurgeOldMissiles(I)
 end 
@@ -34,6 +34,14 @@ function PurgeOldMissiles(I)
 			end
 		end
 	end
+end
+
+function MissileCount(I)
+	Count = 0
+	for i=0, I:GetLuaTransceiverCount(), 1 do
+		Count = Count + I:GetLuaControlledMissileCount(i)
+	end
+	return Count
 end
 
 
