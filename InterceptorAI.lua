@@ -11,28 +11,31 @@ function Update(I)
 		for i=LaunchedMissileCount, I:GetNumberOfWarnings(0)-1, 1 do
 			FireInterceptor(I)
 		end
-		
+	end
+	if LaunchedMissileCount>table.getn(AssignedMissiles) then
 		GiveMissilesTargets(I)
 	end
+
 	PurgeOldMissiles(I)
+	PurgeInterceptorTargets(I)
 end 
 
 
 function GiveMissilesTargets(I)
 	for i=0, I:GetLuaTransceiverCount(),1 do
 		for n=0, I:GetLuaControlledMissileCount(i),1 do
-			I:LogToHud(AssignedMissiles[I:GetLuaControlledMissileInfo(i,n).Id)
 
 			--If a Missile has already been targeted by us, skip it
 			if not AssignedMissiles[I:GetLuaControlledMissileInfo(i,n).Id] then
-				for u=0, I:GetNumberOfWarnings(0)-1, 1 do
+				for u=0, table.getn(IncomingMissiles)-1, 1 do
 
 					--don't target multiple interceptors at the same thing
 					if not TargetedMissiles[IncomingMissiles[u].Id] then
 						I:SetLuaControlledMissileInterceptorTarget(i,n,0,u)
 						TargetedMissiles[IncomingMissiles[u].Id] = IncomingMissiles[u]
 						AssignedMissiles[I:GetLuaControlledMissileInfo(i,n).Id] = IncomingMissiles[u].Id
-						I:LogToHud(I:GetLuaControlledMissileInfo(i,n).Id .. " -> " .. IncomingMissiles[u].Id)
+						I:Log(I:GetLuaControlledMissileInfo(i,n).Id .. " -> " .. IncomingMissiles[u].Id)
+						break
 					end
 				end
 			end
@@ -53,6 +56,10 @@ function GetWarnings(I)
 	return warnings
 end
 
+
+function PurgeInterceptorTargets(I)
+
+end
 
 
 function PurgeOldMissiles(I)
