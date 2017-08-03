@@ -1,14 +1,45 @@
 -- config
 InterceptorWeaponSlot = 5
+MissileTimeout = 6.0
 IncomingMissiles = {}
+AssignedMissiles = {}
 TargetedMissiles = {}
 function Update(I)
 	IncomingMissiles = GetWarnings(I)
 	LaunchedMissileCount = MissileCount(I)
-	I:LogToHud(LaunchedMissileCount)
-
+	if I:GetNumberOfWarnings(0) > 0 then
+		for i=LaunchedMissileCount, I:GetNumberOfWarnings(0)-1, 1 do
+			FireInterceptor(I)
+		end
+		
+		GiveMissilesTargets(I)
+	end
 	PurgeOldMissiles(I)
 end 
+
+
+function GiveMissilesTargets(I)
+	for i=0, I:GetLuaTransceiverCount(),1 do
+		for n=0, I:GetLuaControlledMissileCount(i),1 do
+			I:LogToHud(AssignedMissiles[I:GetLuaControlledMissileInfo(i,n).Id)
+
+			--If a Missile has already been targeted by us, skip it
+			if not AssignedMissiles[I:GetLuaControlledMissileInfo(i,n).Id] then
+				for u=0, I:GetNumberOfWarnings(0)-1, 1 do
+
+					--don't target multiple interceptors at the same thing
+					if not TargetedMissiles[IncomingMissiles[u].Id] then
+						I:SetLuaControlledMissileInterceptorTarget(i,n,0,u)
+						TargetedMissiles[IncomingMissiles[u].Id] = IncomingMissiles[u]
+						AssignedMissiles[I:GetLuaControlledMissileInfo(i,n).Id] = IncomingMissiles[u].Id
+						I:LogToHud(I:GetLuaControlledMissileInfo(i,n).Id .. " -> " .. IncomingMissiles[u].Id)
+					end
+				end
+			end
+		end	
+	end
+end
+
 
 function GetWarnings(I)
 --Returns an array of all missile warnings
@@ -27,10 +58,9 @@ end
 function PurgeOldMissiles(I)
 	for i=0, I:GetLuaTransceiverCount(),1 do
 		for n=0, I:GetLuaControlledMissileCount(i), 1 do
-			if I:GetLuaControlledMissileInfo(i,n).TimeSinceLaunch > 3.0 then
-				if I:IsLuaControlledMissileAnInterceptor(i,n) then
-					I:DetonateLuaControlledMissile(i,n)
-				end
+			if I:GetLuaControlledMissileInfo(i,n).TimeSinceLaunch > MissileTimeout and I:IsLuaControlledMissileAnInterceptor(i,n) then
+				AssignedMissiles[I:GetLuaControlledMissileInfo(i,n).Id] = nil
+				I:DetonateLuaControlledMissile(i,n)
 			end
 		end
 	end
@@ -47,15 +77,9 @@ end
 
 function FireInterceptor(I)
 --Fires first available missile interceptor
-	Weapons = {}
-	for i=0,I:GetWeaponCount()-1, 1 do
-		table.insert(Weapons, i, I:GetWeaponInfo(i))
-	end
-	for i=0, table.getn(Weapons)-1, 1 do
-		if Weapons[i].WeaponSlot == InterceptorWeaponSlot then
-			if I:FireWeapon(i, InterceptorWeaponSlot) then
-				break
-			end
+	for i=0, I:GetWeaponCount(),1 do
+		if I:GetWeaponInfo(i).WeaponSlot == InterceptorWeaponSlot and I:FireWeapon(i, InterceptorWeaponSlot) then
+			break
 		end
 	end
 end
