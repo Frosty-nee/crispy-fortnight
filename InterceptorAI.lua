@@ -18,6 +18,7 @@ function Update(I)
 
 	PurgeOldMissiles(I)
 	PurgeInterceptorTargets(I)
+	I:Log(table.getn(TargetedMissiles))
 end 
 
 
@@ -34,7 +35,6 @@ function GiveMissilesTargets(I)
 						I:SetLuaControlledMissileInterceptorTarget(i,n,0,u)
 						TargetedMissiles[IncomingMissiles[u].Id] = IncomingMissiles[u]
 						AssignedMissiles[I:GetLuaControlledMissileInfo(i,n).Id] = IncomingMissiles[u].Id
-						I:Log(I:GetLuaControlledMissileInfo(i,n).Id .. " -> " .. IncomingMissiles[u].Id)
 						break
 					end
 				end
@@ -58,7 +58,16 @@ end
 
 
 function PurgeInterceptorTargets(I)
-
+--Remove targets that no longer exist
+	for k,v in pairs(TargetedMissiles) do
+		for i=0,table.getn(IncomingMissiles)-1,1 do
+			if k == IncomingMissiles[i].Id then
+				break
+			end
+		I:Log("removing: ".. IncomingMissiles[i].Id)
+		table.remove(TargetedMissiles, IncomingMissiles[i].Id)
+		end
+	end
 end
 
 
