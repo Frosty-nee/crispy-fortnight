@@ -1,28 +1,11 @@
 -- config
-InterceptorWeaponSlot = 5
-MissileTimeout = 6.0
-IncomingMissiles = {}
-AssignedMissiles = {}
-TargetedMissiles = {}
-function Update(I)
-	IncomingMissiles = GetWarnings(I)
-	LaunchedMissileCount = MissileCount(I)
-	if I:GetNumberOfWarnings(0) > 0 then
-		for i=LaunchedMissileCount, I:GetNumberOfWarnings(0)-1, 1 do
-			FireInterceptor(I)
-		end
-	end
-	if LaunchedMissileCount>table.getn(AssignedMissiles) then
-		GiveMissilesTargets(I)
-	end
+local InterceptorWeaponSlot = 5
+local MissileTimeout = 6.0
+local IncomingMissiles = {}
+local AssignedMissiles = {}
+local TargetedMissiles = {}
 
-	PurgeOldMissiles(I)
-	PurgeInterceptorTargets(I)
-	I:Log(table.getn(TargetedMissiles))
-end 
-
-
-function GiveMissilesTargets(I)
+local function GiveMissilesTargets(I)
 	for i=0, I:GetLuaTransceiverCount(),1 do
 		for n=0, I:GetLuaControlledMissileCount(i),1 do
 
@@ -39,15 +22,14 @@ function GiveMissilesTargets(I)
 					end
 				end
 			end
-		end	
+		end
 	end
 end
 
-
-function GetWarnings(I)
---Returns an array of all missile warnings
-	warnings = {}
-	count = I:GetNumberOfWarnings(0)
+local function GetWarnings(I)
+	--Returns an array of all missile warnings
+	local warnings = {}
+	local count = I:GetNumberOfWarnings(0)
 	if count > 0 then
 		for i=0 , count, 1 do
 			warnings[i] = I:GetMissileWarning(0,i)
@@ -56,10 +38,9 @@ function GetWarnings(I)
 	return warnings
 end
 
-
-function PurgeInterceptorTargets(I)
---Remove targets that no longer exist
-	for k,v in pairs(TargetedMissiles) do
+local function PurgeInterceptorTargets(I)
+	--Remove targets that no longer exist
+	for k,_ in pairs(TargetedMissiles) do
 		for i=0,table.getn(IncomingMissiles)-1,1 do
 			if k == IncomingMissiles[i].Id then
 				break
@@ -70,11 +51,11 @@ function PurgeInterceptorTargets(I)
 	end
 end
 
-
-function PurgeOldMissiles(I)
+local function PurgeOldMissiles(I)
 	for i=0, I:GetLuaTransceiverCount(),1 do
 		for n=0, I:GetLuaControlledMissileCount(i), 1 do
-			if I:GetLuaControlledMissileInfo(i,n).TimeSinceLaunch > MissileTimeout and I:IsLuaControlledMissileAnInterceptor(i,n) then
+			local timedOut = I:GetLuaControlledMissileInfo(i,n).TimeSinceLaunch > MissileTimeout
+			if timedOut and I:IsLuaControlledMissileAnInterceptor(i,n) then
 				AssignedMissiles[I:GetLuaControlledMissileInfo(i,n).Id] = nil
 				I:DetonateLuaControlledMissile(i,n)
 			end
@@ -82,20 +63,36 @@ function PurgeOldMissiles(I)
 	end
 end
 
-function MissileCount(I)
-	Count = 0
+local function MissileCount(I)
+	local count = 0
 	for i=0, I:GetLuaTransceiverCount(), 1 do
-		Count = Count + I:GetLuaControlledMissileCount(i)
+		count = count + I:GetLuaControlledMissileCount(i)
 	end
-	return Count
+	return count
 end
 
-
-function FireInterceptor(I)
---Fires first available missile interceptor
+local function FireInterceptor(I)
+	--Fires first available missile interceptor
 	for i=0, I:GetWeaponCount(),1 do
 		if I:GetWeaponInfo(i).WeaponSlot == InterceptorWeaponSlot and I:FireWeapon(i, InterceptorWeaponSlot) then
 			break
 		end
 	end
+end
+
+function Update(I)
+	IncomingMissiles = GetWarnings(I)
+	local LaunchedMissileCount = MissileCount(I)
+	if I:GetNumberOfWarnings(0) > 0 then
+		for _=LaunchedMissileCount, I:GetNumberOfWarnings(0)-1, 1 do
+			FireInterceptor(I)
+		end
+	end
+	if LaunchedMissileCount>table.getn(AssignedMissiles) then
+		GiveMissilesTargets(I)
+	end
+
+	PurgeOldMissiles(I)
+	PurgeInterceptorTargets(I)
+	I:Log(table.getn(TargetedMissiles))
 end
