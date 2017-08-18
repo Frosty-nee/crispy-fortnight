@@ -41,11 +41,13 @@ function SetHydrofoilControlType(I)
 			Control["Pitch"]["Negative"][i] = i
 			break
 		end
-		if BI.LocalPositionRelativeToCom.x > 0 then
-			Control["Roll"]["Positive"][i] = i
-		end
-		if BI.LocalPositionRelativeToCom.x < 0 then
-			Control["Roll"]["Negative"][i] = i
+		if !BI.LocalPositionRelativeToCom.z == Extents["Negative"] or !BI.LocalPositionRelativeToCom.z == Extents["Positive"] then 
+			if BI.LocalPositionRelativeToCom.x > 0 then
+				Control["Roll"]["Positive"][i] = i
+			end
+			if BI.LocalPositionRelativeToCom.x < 0 then
+				Control["Roll"]["Negative"][i] = i
+			end
 		end
 	end
 		
