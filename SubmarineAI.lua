@@ -1,53 +1,71 @@
-local Attitude = {Pitch=0, Roll=0, Yaw=0}
+--config
+local MAX_ROLL = 10
+
+
+local AngularVelocity = {}
+local Attitude = {}
 local Control = {
-		Pitch: {
-			Positive: {}
-			Negative: {}
-		}
-		Roll: {
-			Positive: {}
-			Negative: {}
-		}
-		Yaw: {
-			Positive: {}
-			Negative: {}
+		Pitch= {
+			Positive= {},
+			Negative= {},
+		},
+		Roll= {
+			Positive= {},
+			Negative= {},
+		},
+		Yaw= {
+			Positive= {},
+			Negative= {},
 		}
 	}
 
 function SetHydrofoilControlType(I)
+--makes a best guess as to which hydrofoils should be used for what, and assigns them to the correct control group
 	local HydrofoilCount = I:Component_GetCount(8)
 	local Extents = GetHydrofoilExtents(I)
 	for i=0, HydrofoilCount -1, 1 do
-		local BlockInfo = I:GetComponent_BlockInfo(8,i)
-		if BlockInfo.LocalRotation.z > 0 then
-			if I:GetComponent_BlockInfo.LocalPositionRelativeToCom.z > 0 then
-				Control[Yaw[Positive[i]]] = i
+		local BI = I:Component_GetBlockInfo(8,i)
+		if BI.LocalRotation.z > 0 then
+			if BI.LocalPositionRelativeToCom.z > 0 then
+				Control["Yaw"]["Positive"][i] = i
 			else
-				Control[Yaw[Negative[i]]] = i
+				Control["Yaw"]["Negative"][i] = i
 			end
 		end
-		if BlockInfo.LocalPositionRelativeToCom.z == Extents[Positive] then
-			Control[Pitch[Positive[i]]] = i
+		if BI.LocalPositionRelativeToCom.z == Extents[Positive] then
+			Control["Pitch"]["Positive"][i] = i
 		end
-		if BlockInfo.LocalPositionRelativeToCom.z == Extents[Negative] then
-			Control[Pitch[Positive[i]]] = i
+		if BI.LocalPositionRelativeToCom.z == Extents[Negative] then
+			Control["Pitch"]["Negative"][i] = i
 		end
-		if BlockInfo.LocalPositionRelativeToCom.x > 0 then
-			Control[Roll[Positive[i]]] = i
+		if BI.LocalPositionRelativeToCom.x > 0 then
+			Control["Roll"]["Positive"][i] = i
 		end
-		if BlockInfo.LocalPositionRelativeToCom.x < 0 then
-			Control[Roll[Negative[i]]] = i
+		if BI.LocalPositionRelativeToCom.x < 0 then
+			Control["Roll"]["Negative"][i] = i
 		end
 	end
 		
 	
 end
 
+function RollControl(I)
+--Attempts to minimize roll during normal operation, and keep roll below the MAX_ROLL value during turning maneuvers.
+	for _,v in pairs(Control["Roll"]["Positive"]) do
+		I:Component_SetFloatLogic(8,v, Attitude["Roll"]*-1)
+	end
+	for _,v in pairs(Control["Roll"]["Negative"]) do
+		I:Component_SetFloatLogic(8,v,Attitude["Roll"])
+	end
+
+end
+
 function GetHydrofoilExtents(I)
+-- returns the distance fore/aft of the furthest hydrofoils from CoM
 	local Positive = 0
 	local Negative = 0
 	for i=0, I:Component_GetCount(8)-1, 1 do
-		local position = I:GetComponent_BlockInfo(8,i).LocalPositionRelativeToCom.z
+		local position = I:Component_GetBlockInfo(8,i).LocalPositionRelativeToCom.z
 		if pos > Positive then
 			Positive = position
 		end
@@ -58,7 +76,8 @@ function GetHydrofoilExtents(I)
 	return {Positive, Negative}
 end
 
-function GetPitchRollYaw(I) 
+function GetPitchRollYaw(I)
+--Returns an array containing the current pitch, roll, and yaw of the construct, in degrees
 	Attitude["Pitch"] = I:GetConstructPitch()
 	Attitude["Roll"] = I:GetConstructRoll()
 	Attitude["Yaw"] = I:GetConstructYaw()
@@ -67,6 +86,10 @@ end
 
 
 function Update(I)
+	--AngularVelocity is an array of angular velocities in radians/s
+	-- X = Pitch, Y = Yaw, Z = Roll
+	AngularVelocity = I:GetLocalAngularVelocity(I)
 	Attitude = GetPitchRollYaw(I)
-	I:LogToHud(Attitude["Yaw"])
+	SetHydrofoilControlType(I)
+	RollControl(I)
 end
