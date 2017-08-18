@@ -32,11 +32,14 @@ function SetHydrofoilControlType(I)
 				Control["Yaw"]["Negative"][i] = i
 			end
 		end
-		if BI.LocalPositionRelativeToCom.z == Extents[Positive] then
+
+		if BI.LocalPositionRelativeToCom.z == Extents["Positive"] then
 			Control["Pitch"]["Positive"][i] = i
+			break
 		end
-		if BI.LocalPositionRelativeToCom.z == Extents[Negative] then
+		if BI.LocalPositionRelativeToCom.z == Extents["Negative"] then
 			Control["Pitch"]["Negative"][i] = i
+			break
 		end
 		if BI.LocalPositionRelativeToCom.x > 0 then
 			Control["Roll"]["Positive"][i] = i
@@ -51,11 +54,19 @@ end
 
 function RollControl(I)
 --Attempts to minimize roll during normal operation, and keep roll below the MAX_ROLL value during turning maneuvers.
+	local roll = Attitude["Roll"]
+	if roll > 180 then
+		roll = roll - 360
+	end
+	local dot = 1
+	if I:GetForwardsVelocityMagnitude() < 0 then
+		dot = -1
+	end
 	for _,v in pairs(Control["Roll"]["Positive"]) do
-		I:Component_SetFloatLogic(8,v, Attitude["Roll"]*-1)
+		I:Component_SetFloatLogic(8,v, -roll*dot)
 	end
 	for _,v in pairs(Control["Roll"]["Negative"]) do
-		I:Component_SetFloatLogic(8,v,Attitude["Roll"])
+		I:Component_SetFloatLogic(8,v, roll*dot)
 	end
 
 end
@@ -92,4 +103,5 @@ function Update(I)
 	Attitude = GetPitchRollYaw(I)
 	SetHydrofoilControlType(I)
 	RollControl(I)
+	I:Log(I:Component_GetBlockInfo(8,0).LocalPositionRelativeToCom.x)
 end
