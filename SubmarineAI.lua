@@ -26,7 +26,7 @@ function SetHydrofoilControlType(I)
 	for i=0, HydrofoilCount -1, 1 do
 		local BI = I:Component_GetBlockInfo(8,i)
 		--If hydrofoil is vertical, we know it's used for yaw
-		if BI.LocalRotation.z > 0 then
+		if BI.LocalRotation.z ~= 0 then
 			if BI.LocalPositionRelativeToCom.z > 0 then
 				Control["Yaw"]["Positive"][i] = i
 			else
@@ -50,7 +50,6 @@ function SetHydrofoilControlType(I)
 				Control["Roll"]["Negative"][i] = i
 			end
 		end
-
 	end
 end
 
@@ -78,11 +77,13 @@ function GetHydrofoilExtents(I)
 	local NE = 0
 	for i=0, I:Component_GetCount(8)-1, 1 do
 		local position = I:Component_GetBlockInfo(8,i).LocalPositionRelativeToCom.z
-		if position > PE then
-			PE = position
-		end
-		if position < NE then
-			NE = position
+		if I:Component_GetBlockInfo(8,i).LocalRotation.z == 0 then	
+			if position > PE then
+				PE = position
+		
+			elseif position < NE then
+				NE = position
+			end
 		end
 	end
 	return {Positive=PE, Negative=NE}
@@ -104,5 +105,4 @@ function Update(I)
 	Attitude = GetPitchRollYaw(I)
 	SetHydrofoilControlType(I)
 	RollControl(I)
-	I:Log(I:Component_GetBlockInfo(8,0).LocalPositionRelativeToCom.x)
 end
