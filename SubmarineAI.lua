@@ -25,33 +25,33 @@ function SetHydrofoilControlType(I)
 	local Extents = GetHydrofoilExtents(I)
 	for i=0, HydrofoilCount -1, 1 do
 		local BI = I:Component_GetBlockInfo(8,i)
+		--If hydrofoil is vertical, we know it's used for yaw
 		if BI.LocalRotation.z > 0 then
 			if BI.LocalPositionRelativeToCom.z > 0 then
 				Control["Yaw"]["Positive"][i] = i
 			else
 				Control["Yaw"]["Negative"][i] = i
 			end
-		end
-
-		if BI.LocalPositionRelativeToCom.z == Extents["Positive"] then
-			Control["Pitch"]["Positive"][i] = i
-			break
-		end
-		if BI.LocalPositionRelativeToCom.z == Extents["Negative"] then
-			Control["Pitch"]["Negative"][i] = i
-			break
-		end
-		if !BI.LocalPositionRelativeToCom.z == Extents["Negative"] or !BI.LocalPositionRelativeToCom.z == Extents["Positive"] then 
+		
+		--if not, check to see if its distance from CoM is the same as the furthest hydrofoils from CoM
+		--if yes, we know it's used for pitch control
+		--I have no idea why these are off by 1, but at least this is an "easy" fix?
+		elseif BI.LocalPositionRelativeToCom.z == Extents["Positive"]-1 or BI.LocalPositionRelativeToCom.z == Extents["Negative"]+1 then
+			if BI.LocalPositionRelativeToCom.z == Extents["Positive"]-1 then
+				Control["Pitch"]["Positive"][i] = i
+			else
+				Control["Pitch"]["Negative"][i] = i
+			end
+		--if not, it has to be roll control
+		else 
 			if BI.LocalPositionRelativeToCom.x > 0 then
 				Control["Roll"]["Positive"][i] = i
-			end
-			if BI.LocalPositionRelativeToCom.x < 0 then
+			else
 				Control["Roll"]["Negative"][i] = i
 			end
 		end
+
 	end
-		
-	
 end
 
 function RollControl(I)
@@ -62,7 +62,6 @@ function RollControl(I)
 	end
 	local dot = 1
 	if I:GetForwardsVelocityMagnitude() < 0 then
-		dot = -1
 	end
 	for _,v in pairs(Control["Roll"]["Positive"]) do
 		I:Component_SetFloatLogic(8,v, -roll*dot)
@@ -75,18 +74,18 @@ end
 
 function GetHydrofoilExtents(I)
 -- returns the distance fore/aft of the furthest hydrofoils from CoM
-	local Positive = 0
-	local Negative = 0
+	local PE = 0
+	local NE = 0
 	for i=0, I:Component_GetCount(8)-1, 1 do
 		local position = I:Component_GetBlockInfo(8,i).LocalPositionRelativeToCom.z
-		if pos > Positive then
-			Positive = position
+		if position > PE then
+			PE = position
 		end
-		if position < Negative then
-			Negative = position
+		if position < NE then
+			NE = position
 		end
 	end
-	return {Positive, Negative}
+	return {Positive=PE, Negative=NE}
 end
 
 function GetPitchRollYaw(I)
