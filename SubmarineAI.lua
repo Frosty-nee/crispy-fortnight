@@ -1,7 +1,6 @@
 --config
 local MAX_ROLL = 10
 
-
 local AngularVelocity = {}
 local Attitude = {}
 local Control = {
@@ -19,7 +18,7 @@ local Control = {
 		}
 	}
 
-function SetHydrofoilControlType(I)
+local function SetHydrofoilControlType(I)
 --makes a best guess as to which hydrofoils should be used for what, and assigns them to the correct control group
 	local HydrofoilCount = I:Component_GetCount(8)
 	local Extents = GetHydrofoilExtents(I)
@@ -32,7 +31,6 @@ function SetHydrofoilControlType(I)
 			else
 				Control["Yaw"]["Negative"][i] = i
 			end
-		
 		--if not, check to see if its distance from CoM is the same as the furthest hydrofoils from CoM
 		--if yes, we know it's used for pitch control
 		--I have no idea why these are off by 1, but at least this is an "easy" fix?
@@ -53,7 +51,7 @@ function SetHydrofoilControlType(I)
 	end
 end
 
-function RollControl(I)
+local function RollControl(I)
 --Attempts to minimize roll during normal operation, and keep roll below the MAX_ROLL value during turning maneuvers.
 	local roll = Attitude["Roll"]
 	if roll > 180 then
@@ -61,6 +59,7 @@ function RollControl(I)
 	end
 	local dot = 1
 	if I:GetForwardsVelocityMagnitude() < 0 then
+		dot = -1
 	end
 	for _,v in pairs(Control["Roll"]["Positive"]) do
 		I:Component_SetFloatLogic(8,v, -roll*dot)
@@ -71,16 +70,16 @@ function RollControl(I)
 
 end
 
-function GetHydrofoilExtents(I)
+local function GetHydrofoilExtents(I)
 -- returns the distance fore/aft of the furthest hydrofoils from CoM
 	local PE = 0
 	local NE = 0
 	for i=0, I:Component_GetCount(8)-1, 1 do
+		--ignore hydrofoils if they're vertical instead of horizontal
 		local position = I:Component_GetBlockInfo(8,i).LocalPositionRelativeToCom.z
 		if I:Component_GetBlockInfo(8,i).LocalRotation.z == 0 then	
 			if position > PE then
 				PE = position
-		
 			elseif position < NE then
 				NE = position
 			end
@@ -89,7 +88,7 @@ function GetHydrofoilExtents(I)
 	return {Positive=PE, Negative=NE}
 end
 
-function GetPitchRollYaw(I)
+local function GetPitchRollYaw(I)
 --Returns an array containing the current pitch, roll, and yaw of the construct, in degrees
 	Attitude["Pitch"] = I:GetConstructPitch()
 	Attitude["Roll"] = I:GetConstructRoll()
@@ -98,7 +97,7 @@ function GetPitchRollYaw(I)
 end
 
 
-function Update(I)
+local function Update(I)
 	--AngularVelocity is an array of angular velocities in radians/s
 	-- X = Pitch, Y = Yaw, Z = Roll
 	AngularVelocity = I:GetLocalAngularVelocity(I)
