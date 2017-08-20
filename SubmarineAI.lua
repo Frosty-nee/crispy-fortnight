@@ -1,6 +1,7 @@
 --config
 local MAX_ROLL = 10
 
+local HydrofoilCount = 0
 local AngularVelocity = {}
 local Attitude = {}
 local Control = {
@@ -17,6 +18,17 @@ local Control = {
 			Negative= {},
 		}
 	}
+
+local function AirPumpControl(I, BuoyancyFraction)
+-- sets all air pumps to the given buoyancy fraction
+	-- expecting input read from a drive maintainer, in a range of -5 to 5
+	-- convert this to the 0 to 1 required for the airpump
+	BuoyancyFraction = ((BuoyancyFraction/5)+1)/2
+	for i=0, I:Component_GetCount(2), 1 do
+		I:Component_SetFloatLogic(2,BuoyancyFraction)
+	end
+
+end
 
 local function SetHydrofoilControlType(I)
 --makes a best guess as to which hydrofoils should be used for what, and assigns them to the correct control group
@@ -101,7 +113,10 @@ local function Update(I)
 	--AngularVelocity is an array of angular velocities in radians/s
 	-- X = Pitch, Y = Yaw, Z = Roll
 	AngularVelocity = I:GetLocalAngularVelocity(I)
+	if I:Component_GetCount(8) ~= HydrofoilCount then
+		HydrofoilCount = I:Component_GetCount(8)
+		SetHydrofoilControlType(I)
+	end
 	Attitude = GetPitchRollYaw(I)
-	SetHydrofoilControlType(I)
 	RollControl(I)
 end
