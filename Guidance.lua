@@ -9,14 +9,13 @@ function ActiveMissileUpdate(I)
 			local warning = I:GetLuaControlledMissileInfo(i,o)
 			-- don't add interceptors or null missiles to the list 
 			if warning.Id ~= 0 and I:IsLuaControlledMissileAnInterceptor(i,o) == false then
-				ActiveMissileTargets[warning.Id] = nil
 				ActiveMissiles[warning.Id] = warning
 			end
 		end
 	end	
 end
 
-function AssignMissileTargets(I)
+function AssignMissileTargets()
 --not sure how to do this well yet
 --might need config options to set how much to spread missiles among targets
 	for k,_ in pairs(ActiveMissiles) do
@@ -35,7 +34,7 @@ function UpdateTargetList(I)
 	end
 end
 
-function RemoveOldMissileTargets(I)
+function RemoveOldMissileTargets()
 	for k,v in pairs(ActiveMissileTargets) do
 		if ActiveMissiles[k] == nil then
 			ActiveMissileTargets[k] = nil
@@ -43,14 +42,25 @@ function RemoveOldMissileTargets(I)
 	end
 end
 
+function AimpointUpdate(I,TIndex, MIndex)
+	local missile = I:GetLuaControlledMissileInfo(TIndex,MIndex)
+	local tgt = Targets[ActiveMissileTargets[missile.Id]]
+	if tgt ~= nil then
+		I:Log(tgt.Id .. tgt.Position.x .. tgt.Position.y .. tgt.Position.z)
+		I:SetLuaControlledMissileAimPoint(TIndex,MIndex,tgt.Position.x,tgt.Position.y,tgt.Position.z)
+	end
+end
+
 function Update(I)
 	ActiveMissiles = {} -- clears old missiles that are no longer active
 	Targets = {}
 
-	ActiveMissileUpdate(I)
 	UpdateTargetList(I)
-	AssignMissileTargets(I)
-	for k,v in pairs(ActiveMissiles) do
-		I:LogToHud("missileid: " .. tostring(k) .. "tgt: " .. ActiveMissileTargets[k])
+	ActiveMissileUpdate(I) --has to be called before AssignMissileTargets
+	AssignMissileTargets()
+	for i=0, I:GetLuaTransceiverCount(), 1 do
+		for o=0, I:GetLuaControlledMissileCount(i), 1 do
+			AimpointUpdate(I,i,o)
+		end
 	end
 end
