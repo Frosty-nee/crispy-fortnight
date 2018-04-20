@@ -18,8 +18,16 @@ end
 function AssignMissileTargets()
 --not sure how to do this well yet
 --might need config options to set how much to spread missiles among targets
+	local MaxScore = 0
+	local HighScoreId = nil
+	for k,v in pairs(Targets) do
+		if v.Score > MaxScore then
+			MaxScore = v.Score
+			HighScoreId = v.Id
+		end
+	end
 	for k,_ in pairs(ActiveMissiles) do
-		ActiveMissileTargets[k] = 15486		
+		ActiveMissileTargets[k] = HighScoreId
 	end
 end
 
