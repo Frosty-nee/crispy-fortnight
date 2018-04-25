@@ -50,13 +50,32 @@ function RemoveOldMissileTargets()
 	end
 end
 
-function AimpointUpdate(I,TIndex, MIndex)
+function AimpointUpdate(I, TIndex, MIndex)
 	local missile = I:GetLuaControlledMissileInfo(TIndex,MIndex)
 	local tgt = Targets[ActiveMissileTargets[missile.Id]]
 	if tgt ~= nil then
-		I:Log(tgt.Id .. tgt.Position.x .. tgt.Position.y .. tgt.Position.z)
-		I:SetLuaControlledMissileAimPoint(TIndex,MIndex,tgt.Position.x,tgt.Position.y,tgt.Position.z)
+	local x,y,z = TargetNavigationPrediction(I,tgt.Id)
+		I:SetLuaControlledMissileAimPoint(TIndex,MIndex,x,y,z)
 	end
+end
+
+function GetTargetInfoById(I, Id)
+	for indx=0, I:GetNumberOfMainframes(), 1 do
+		for o=0, I:GetNumberOfTargets(indx), 1 do
+			local target = I:GetTargetInfo(indx,o)
+			if target.Id == Id then
+				return indx, o
+			end
+		end
+	end
+end
+
+function TargetNavigationPrediction(I, Id)
+	local mainframe, targetindex = GetTargetInfoById(I, Id)
+	local TargetInfo = I:GetTargetInfo(mainframe, targetindex)
+	local TargetPositionInfo = I:GetTargetPositionInfo(mainframe, targetindex)
+	local x,y,z = TargetInfo.Position.x + TargetInfo.Velocity.x, TargetInfo.Position.y + TargetInfo.Velocity.y, TargetInfo.Position.z + TargetInfo.Velocity.z
+	return x,y,z
 end
 
 function Update(I)
