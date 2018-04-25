@@ -3,7 +3,6 @@
 ActiveMissileTargets = {}
 
 function ActiveMissileUpdate(I)
-	ActiveMissiles[0] = nil
 	for i=0,I:GetLuaTransceiverCount(), 1 do
 		for o=0, I:GetLuaControlledMissileCount(i), 1 do
 			local warning = I:GetLuaControlledMissileInfo(i,o)
@@ -54,8 +53,8 @@ function AimpointUpdate(I, TIndex, MIndex)
 	local missile = I:GetLuaControlledMissileInfo(TIndex,MIndex)
 	local tgt = Targets[ActiveMissileTargets[missile.Id]]
 	if tgt ~= nil then
-	local x,y,z = TargetNavigationPrediction(I,tgt.Id)
-		I:SetLuaControlledMissileAimPoint(TIndex,MIndex,x,y,z)
+		local x,y,z = TargetNavigationPrediction(I,tgt, EstimateTimeToImpact(I,tgt,missile))
+		I:SetLuaControlledMissileAimPoint(TIndex,MIndex, x, y, z)
 	end
 end
 
@@ -70,11 +69,18 @@ function GetTargetInfoById(I, Id)
 	end
 end
 
-function TargetNavigationPrediction(I, Id)
+function EstimateTimeToImpact(I,TargetInfo, missile)
+	-- distances are in meters, velocities are in m/s
+	local distance = TargetInfo.Position - missile.Position
+	local rvel = TargetInfo.Velocity - missile.Velocity
+	return Mathf.Sqrt(Mathf.Pow(distance.x, 2) + Mathf.Pow(distance.y, 2) + Mathf.Pow(distance.z, 2))
+	/ Mathf.Sqrt(Mathf.Pow(rvel.x,2) + Mathf.Pow(rvel.y,2) + Mathf.Pow(rvel.z,2))
+end
+
+function TargetNavigationPrediction(I, TargetInfo, TimeToImpact)
+	local ttl = Mathf.Min(5,TimeToImpact)
 	local mainframe, targetindex = GetTargetInfoById(I, Id)
-	local TargetInfo = I:GetTargetInfo(mainframe, targetindex)
-	local TargetPositionInfo = I:GetTargetPositionInfo(mainframe, targetindex)
-	local x,y,z = TargetInfo.Position.x + TargetInfo.Velocity.x, TargetInfo.Position.y + TargetInfo.Velocity.y, TargetInfo.Position.z + TargetInfo.Velocity.z
+	local x,y,z = TargetInfo.Position.x + TargetInfo.Velocity.x*ttl, TargetInfo.Position.y + TargetInfo.Velocity.y*ttl, TargetInfo.Position.z + TargetInfo.Velocity.z*ttl
 	return x,y,z
 end
 
