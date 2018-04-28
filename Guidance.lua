@@ -1,6 +1,7 @@
 --config
 
 ActiveMissileTargets = {}
+ActiveMissileDistance = {}
 
 function ActiveMissileUpdate(I)
 	for i=0,I:GetLuaTransceiverCount(), 1 do
@@ -55,6 +56,14 @@ function AimpointUpdate(I, TIndex, MIndex)
 	if tgt ~= nil then
 		local x,y,z = TargetNavigationPrediction(I,tgt, EstimateTimeToImpact(I,tgt,missile))
 		I:SetLuaControlledMissileAimPoint(TIndex,MIndex, x, y, z)
+		if Vector3.Distance(missile.Position, tgt.Position) < 6 then
+			distance = Vector3.Distance(tgt.Position, missile.Position)
+			if ActiveMissileDistance[missile.Id] ~= nil and distance > ActiveMissileDistance[missile.Id] then
+				I:DetonateLuaControlledMissile(TIndex,MIndex)
+				I:Log("boom" .. missile.Id)
+			end
+			ActiveMissileDistance[missile.Id] =	distance
+		end
 	end
 end
 
@@ -69,11 +78,11 @@ function GetTargetInfoById(I, Id)
 	end
 end
 
+
 function EstimateTimeToImpact(I,TargetInfo, missile)
 	-- distances are in meters, velocities are in m/s
-	local distance = TargetInfo.Position - missile.Position
 	local rvel = TargetInfo.Velocity - missile.Velocity
-	return Mathf.Sqrt(Mathf.Pow(distance.x, 2) + Mathf.Pow(distance.y, 2) + Mathf.Pow(distance.z, 2))
+	return Vector3.Distance(TargetInfo.Position, missile.Position)
 	/ Mathf.Sqrt(Mathf.Pow(rvel.x,2) + Mathf.Pow(rvel.y,2) + Mathf.Pow(rvel.z,2))
 end
 
