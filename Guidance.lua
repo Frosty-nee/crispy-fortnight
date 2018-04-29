@@ -2,6 +2,7 @@
 
 ActiveMissileTargets = {}
 ActiveMissileDistance = {}
+HistoricalTargetLocations = {}
 
 function ActiveMissileUpdate(I)
 	for i=0,I:GetLuaTransceiverCount(), 1 do
@@ -15,7 +16,7 @@ function ActiveMissileUpdate(I)
 	end	
 end
 
-function AssignMissileTargets()
+function AssignMissileTargets(I)
 --not sure how to do this well yet
 --might need config options to set how much to spread missiles among targets
 	local MaxScore = 0
@@ -26,8 +27,13 @@ function AssignMissileTargets()
 			HighScoreId = v.Id
 		end
 	end
-	for k,_ in pairs(ActiveMissiles) do
-		ActiveMissileTargets[k] = HighScoreId
+	for i=0, I:GetLuaTransceiverCount(), 1 do
+		for o=0, I:GetLuaControlledMissileCount(i), 1 do
+			local missile = I:GetLuaControlledMissileInfo(i,o)
+			if ActiveMissileTargets[missile.Id] == nil then
+				ActiveMissileTargets[missile.Id] = HighScoreId
+			end
+		end
 	end
 end
 
@@ -42,11 +48,12 @@ function UpdateTargetList(I)
 	end
 end
 
-function RemoveOldMissileTargets()
-	for k,v in pairs(ActiveMissileTargets) do
-		if ActiveMissiles[k] == nil then
-			ActiveMissileTargets[k] = nil
+function UpdateTargetLocations(I, Targets)
+	for k,v in pairs(Targets) do
+		if HistoricalTargetLocations[k] == nil then
+			HistoricalTargetLocations[k] = {}
 		end
+		table.insert(HistoricalTargetLocations[k], v)
 	end
 end
 
@@ -56,11 +63,10 @@ function AimpointUpdate(I, TIndex, MIndex)
 	if tgt ~= nil then
 		local x,y,z = TargetNavigationPrediction(I,tgt, EstimateTimeToImpact(I,tgt,missile))
 		I:SetLuaControlledMissileAimPoint(TIndex,MIndex, x, y, z)
-		if Vector3.Distance(missile.Position, tgt.Position) < 6 then
+		if Vector3.Distance(missile.Position, tgt.Position) < 10 then
 			distance = Vector3.Distance(tgt.Position, missile.Position)
 			if ActiveMissileDistance[missile.Id] ~= nil and distance > ActiveMissileDistance[missile.Id] then
 				I:DetonateLuaControlledMissile(TIndex,MIndex)
-				I:Log("boom" .. missile.Id)
 			end
 			ActiveMissileDistance[missile.Id] =	distance
 		end
@@ -94,12 +100,10 @@ function TargetNavigationPrediction(I, TargetInfo, TimeToImpact)
 end
 
 function Update(I)
-	ActiveMissiles = {} -- clears old missiles that are no longer active
 	Targets = {}
-
 	UpdateTargetList(I)
-	ActiveMissileUpdate(I) --has to be called before AssignMissileTargets
-	AssignMissileTargets()
+	UpdateTargetLocations(I, Targets)
+	AssignMissileTargets(I)
 	for i=0, I:GetLuaTransceiverCount(), 1 do
 		for o=0, I:GetLuaControlledMissileCount(i), 1 do
 			AimpointUpdate(I,i,o)
