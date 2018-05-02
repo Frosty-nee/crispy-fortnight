@@ -52,8 +52,13 @@ function UpdateTargetLocations(I, Targets)
 	for k,v in pairs(Targets) do
 		if HistoricalTargetLocations[k] == nil then
 			HistoricalTargetLocations[k] = {}
+			HistoricalTargetLocations[k][0] = 0
+			--I:Log(HistoricalTargetLocations[k][0])
+			--I:Log(#HistoricalTargetLocations[k])
 		end
-		table.insert(HistoricalTargetLocations[k], v)
+		local index = HistoricalTargetLocations[k][0] % 40 + 1
+		HistoricalTargetLocations[k][index] = v
+		HistoricalTargetLocations[k][0] = HistoricalTargetLocations[k][0] + 1
 	end
 end
 
@@ -73,7 +78,7 @@ function AimpointUpdate(I, TIndex, MIndex)
 	end
 end
 
-function GetTargetInfoById(I, Id)
+function GetTargetIndexById(I, Id)
 	for indx=0, I:GetNumberOfMainframes(), 1 do
 		for o=0, I:GetNumberOfTargets(indx), 1 do
 			local target = I:GetTargetInfo(indx,o)
@@ -84,6 +89,13 @@ function GetTargetInfoById(I, Id)
 	end
 end
 
+function RemoveOldVelocityData()
+	for k,_ in pairs(HistoricalTargetLocations) do
+		if Targets[k] == nil then
+			HistoricalTargetLocations[k] = nil
+		end
+	end
+end
 
 function EstimateTimeToImpact(I,TargetInfo, missile)
 	-- distances are in meters, velocities are in m/s
@@ -93,10 +105,22 @@ function EstimateTimeToImpact(I,TargetInfo, missile)
 end
 
 function TargetNavigationPrediction(I, TargetInfo, TimeToImpact)
-	local ttl = Mathf.Min(5,TimeToImpact)
-	local mainframe, targetindex = GetTargetInfoById(I, Id)
-	local x,y,z = TargetInfo.Position.x + TargetInfo.Velocity.x*ttl, TargetInfo.Position.y + TargetInfo.Velocity.y*ttl, TargetInfo.Position.z + TargetInfo.Velocity.z*ttl
+	local ttl = Mathf.Min(6,TimeToImpact)
+	averagex, averagey, averagez = AverageTargetVelocity(TargetInfo)
+	local mainframe, targetindex = GetTargetIndexById(I, Id)
+	local x,y,z = TargetInfo.Position.x + averagex*ttl, TargetInfo.Position.y + averagey*ttl, TargetInfo.Position.z + averagez*ttl
 	return x,y,z
+end
+
+function AverageTargetVelocity(TargetInfo)
+	local x,y,z = 0,0,0
+	if #HistoricalTargetLocations[TargetInfo.Id] > 0 then
+		for i = 1, #HistoricalTargetLocations[TargetInfo.Id] - 1, 1 do
+			v = HistoricalTargetLocations[TargetInfo.Id][i].Velocity
+			x,y,z = x + v.x, y + v.y, z + v.z
+		end
+		return x/40, y/40, z/40
+	end
 end
 
 function Update(I)
@@ -109,4 +133,5 @@ function Update(I)
 			AimpointUpdate(I,i,o)
 		end
 	end
+	RemoveOldVelocityData()
 end
