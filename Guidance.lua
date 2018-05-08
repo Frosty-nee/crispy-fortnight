@@ -4,18 +4,6 @@ ActiveMissileTargets = {}
 ActiveMissileDistance = {}
 HistoricalTargetLocations = {}
 
-function ActiveMissileUpdate(I)
-	for i=0,I:GetLuaTransceiverCount(), 1 do
-		for o=0, I:GetLuaControlledMissileCount(i), 1 do
-			local warning = I:GetLuaControlledMissileInfo(i,o)
-			-- don't add interceptors or null missiles to the list 
-			if warning.Id ~= 0 and I:IsLuaControlledMissileAnInterceptor(i,o) == false then
-				ActiveMissiles[warning.Id] = warning
-			end
-		end
-	end	
-end
-
 function AssignMissileTargets(I)
 --not sure how to do this well yet
 --might need config options to set how much to spread missiles among targets
@@ -30,7 +18,7 @@ function AssignMissileTargets(I)
 	for i=0, I:GetLuaTransceiverCount(), 1 do
 		for o=0, I:GetLuaControlledMissileCount(i), 1 do
 			local missile = I:GetLuaControlledMissileInfo(i,o)
-			if ActiveMissileTargets[missile.Id] == nil then
+			if ActiveMissileTargets[missile.Id] == nil and I:IsLuaControlledMissileAnInterceptor(i,o) == false then
 				ActiveMissileTargets[missile.Id] = HighScoreId
 			end
 		end
@@ -53,8 +41,6 @@ function UpdateTargetLocations(I, Targets)
 		if HistoricalTargetLocations[k] == nil then
 			HistoricalTargetLocations[k] = {}
 			HistoricalTargetLocations[k][0] = 0
-			--I:Log(HistoricalTargetLocations[k][0])
-			--I:Log(#HistoricalTargetLocations[k])
 		end
 		local index = HistoricalTargetLocations[k][0] % 40 + 1
 		HistoricalTargetLocations[k][index] = v
@@ -103,7 +89,8 @@ function EstimateTimeToImpact(I,TargetInfo, missile)
 	return Vector3.Distance(TargetInfo.Position, missile.Position)
 	/ Mathf.Sqrt(Mathf.Pow(rvel.x,2) + Mathf.Pow(rvel.y,2) + Mathf.Pow(rvel.z,2))
 end
-
+--still need to scale the timeframe we're averaging over based on time to impact
+--to reduce the effect of long periods of straight flight followed by a sudden turn
 function TargetNavigationPrediction(I, TargetInfo, TimeToImpact)
 	local ttl = Mathf.Min(6,TimeToImpact)
 	averagex, averagey, averagez = AverageTargetVelocity(TargetInfo)
