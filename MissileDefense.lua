@@ -1,6 +1,6 @@
 --config
 InterceptorWeaponGroup = 5 -- set this to whatever weapon group your anti-missile systems are on
-InterceptorTimeout = 3 -- seconds until interceptor auto-destructs.
+InterceptorTimeout = 7 -- seconds until interceptor auto-destructs.
 
 
 function MissileWarnings(I)
@@ -55,7 +55,9 @@ function Update(I)
 	KillOldInterceptors(I)
 	Warnings = MissileWarnings(I)
 	Interceptors = GetActiveInterceptors(I)
-	for i=#Interceptors, #Warnings, 1 do
-		FireInterceptor(I)
+	if #Warnings > #Interceptors then
+		for i=1, #Warnings - #Interceptors, 1 do
+			FireInterceptor(I)
+		end
 	end
 end
