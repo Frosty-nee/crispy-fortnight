@@ -13,7 +13,7 @@ function AssignMissileTargets(I)
 --not sure how to do this well yet
 --might need config options to set how much to spread missiles among targets
 	local MaxScore = 0
-	local HighScoreId = nil
+	local HighScore = nil
 	for k,v in pairs(Targets) do
 		if v.Score > MaxScore then
 			MaxScore = v.Score
@@ -123,12 +123,14 @@ end
 function TargetNavigationPrediction(I, TargetInfo, TimeToImpact)
 	local ttl = Mathf.Min(MaxLookaheadTime,TimeToImpact)
 	averagex, averagey, averagez = AverageTargetVelocity(TargetInfo)
-	return TargetInfo.Position.x + averagex*ttl, TargetInfo.Position.y + averagey*ttl, TargetInfo.Position.z + averagez*ttl
+	local x,y,z = TargetInfo.Position.x + averagex*ttl, TargetInfo.Position.y + averagey*ttl, TargetInfo.Position.z + averagez*ttl
+	return x,y,z
 end
 
-function MissileNavigationPrediction(I, TargetInfo, TimeToImpact)
+function InterceptorNavigationPrediction(I, TargetInfo, TimeToImpact)
 	local ttl = Mathf.Min(MaxLookaheadTime, TimeToImpact)
-	return TargetInfo.Position.x + TargetInfo.Velocity.x*ttl, TargetInfo.Position.y + TargetInfo.Velocity.y*ttl, TargetInfo.Position.z + TargetInfo.Velocity.z*ttl
+	local x,y,z = TargetInfo.Position.x + TargetInfo.Velocity.x*ttl, TargetInfo.Position.y + TargetInfo.Velocity.y*ttl, TargetInfo.Position.z + TargetInfo.Velocity.z*ttl
+	return x,y,z
 end
 
 function AverageTargetVelocity(TargetInfo)
@@ -148,7 +150,7 @@ function AimpointUpdate(I, TIndex, MIndex, Target, Interceptor)
 	if Target ~= nil then
 		local x,y,z = nil
 		if Interceptor then 
-			x,y,z = MissileNavigationPrediction(I, Target, EstimateTimeToImpact(I,Target,Missile))
+			x,y,z = InterceptorNavigationPrediction(I, Target, EstimateTimeToImpact(I,Target,Missile))
 		else
 			x,y,z = TargetNavigationPrediction(I,Target, EstimateTimeToImpact(I,Target,Missile))
 		end
@@ -175,9 +177,15 @@ function Update(I)
 		for o=0, I:GetLuaControlledMissileCount(i), 1 do
 			if I:IsLuaControlledMissileAnInterceptor(i,o) then
 				I:SetLuaControlledMissileInterceptorStandardGuidanceOnOff(i,o, false)
-				AimpointUpdate(I, i, o, ActiveInterceptorTargets[I:GetLuaControlledMissileInfo(i,o).Id], true)
+				--this is dumb fix this convoluted nested tables thing later
+				--go back to just tracking Id's, basically.
+				if ActiveInterceptorTargets[I:GetLuaControlledMissileInfo(i,o).Id] ~= nil then
+					AimpointUpdate(I, i, o, Warnings[ActiveInterceptorTargets[I:GetLuaControlledMissileInfo(i,o).Id].Id], true)
+				end
 			else
-				AimpointUpdate(I, i, o, Targets[ActiveMissileTargets[I:GetLuaControlledMissileInfo(i,o).Id]], false)
+				if ActiveMissileTargets[I:GetLuaControlledMissileInfo(i,o).Id] ~= nil then
+					AimpointUpdate(I, i, o, Targets[ActiveMissileTargets[I:GetLuaControlledMissileInfo(i,o).Id].Id], false)
+				end
 			end
 		end
 	end

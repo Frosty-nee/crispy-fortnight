@@ -1,7 +1,7 @@
 --config
 InterceptorWeaponGroup = 5 -- set this to whatever weapon group your anti-missile systems are on
 InterceptorTimeout = 7 -- seconds until interceptor auto-destructs.
-
+MinimumInterceptorRange = 100 --minimum range to launch interceptors at an incoming missile
 
 function MissileWarnings(I)
 	Warnings = {}
