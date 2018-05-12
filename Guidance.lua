@@ -1,7 +1,9 @@
 --config
+MaxLookaheadTime = 6 	-- max time to project missile target position forward in time
+MultiTargetFactor = nil -- how much to spread missiles among valid targets, not implemented yet
+--end config
 
 ActiveMissileDistance = {}
---both of these next two map Missile Id's to Target Id's
 ActiveMissileTargets = {}
 ActiveInterceptorTargets = {}
 
@@ -15,34 +17,42 @@ function AssignMissileTargets(I)
 	for k,v in pairs(Targets) do
 		if v.Score > MaxScore then
 			MaxScore = v.Score
-			HighScoreId = v.Id
+			HighScore = v
 		end
 	end
 	for i=0, I:GetLuaTransceiverCount(), 1 do
 		for o=0, I:GetLuaControlledMissileCount(i), 1 do
 			local Missile = I:GetLuaControlledMissileInfo(i,o)
-			if ActiveMissileTargets[Missile.Id] == nil and I:IsLuaControlledMissileAnInterceptor(i,o) == false then
-				ActiveMissileTargets[Missile.Id] = HighScoreId
+			if ActiveMissileTargets[Missile.Id] == nil and not I:IsLuaControlledMissileAnInterceptor(i,o) then
+				ActiveMissileTargets[Missile.Id] = HighScore
 			end
 			-- only target one interceptor per Missile warning
 			if I:IsLuaControlledMissileAnInterceptor(i,o) and ActiveInterceptorTargets[Missile.Id] == nil then
 				--find a warning without an associated interceptor
-				for _,warn in pairs(Warnings) do
-					local T = false
-					for _,v in pairs(ActiveInterceptorTargets) do 
-						if warn.Id == v then
-							T = true
-						end
-					end
-					-- if T is false we know this warning hasn't been assigned an interceptor yet
-					if T == false then
-						ActiveInterceptorTargets[Missile.Id] = warn
-						break
-					end
+				warn = GetTargetForInterceptor()
+				if warn ~= nil then 
+					ActiveInterceptorTargets[Missile.Id] = warn
 				end
 			end
 		end
 	end
+end
+
+function GetTargetForInterceptor()
+	for _,warn in pairs(Warnings) do
+		if not WarningAlreadyAssignedInterceptor(warn) then
+			return warn
+		end
+	end
+end
+
+function WarningAlreadyAssignedInterceptor(Warning)
+	for k,v in pairs(ActiveInterceptorTargets) do
+		if v.Id == Warning.Id then
+			return true
+		end
+	end
+	return false
 end
 
 function UpdateTargetList(I)
@@ -82,21 +92,6 @@ function UpdateTargetLocations(I, Targets)
 end
 
 
-function GetWarningIndexById(I, Id)
-	local MIndex = nil
-	local WIndex = nil
-	for i=0, I:GetNumberOfMainframes(), 1 do
-		for o=0, I:GetNumberOfWarnings(i), 1 do
-			local Warn = I:GetMissileWarning(i,o)
-			if Warn.Id == Id then
-				MIndex, WIndex = i, o 
-				break
-			end
-		end
-	end
-	return MIndex, WIndex
-end
-
 function GetTargetIndexById(I, Id)
 	for indx=0, I:GetNumberOfMainframes(), 1 do
 		for o=0, I:GetNumberOfTargets(indx), 1 do
@@ -122,14 +117,18 @@ function EstimateTimeToImpact(I,TargetInfo, Missile)
 	return Vector3.Distance(TargetInfo.Position, Missile.Position)
 	/ Mathf.Sqrt(Mathf.Pow(rvel.x,2) + Mathf.Pow(rvel.y,2) + Mathf.Pow(rvel.z,2))
 end
+
 --still need to scale the timeframe we're averaging over based on time to impact
 --to reduce the effect of long periods of straight flight followed by a sudden turn
 function TargetNavigationPrediction(I, TargetInfo, TimeToImpact)
-	local ttl = Mathf.Min(6,TimeToImpact)
+	local ttl = Mathf.Min(MaxLookaheadTime,TimeToImpact)
 	averagex, averagey, averagez = AverageTargetVelocity(TargetInfo)
-	local mainframe, targetindex = GetTargetIndexById(I, Id)
-	local x,y,z = TargetInfo.Position.x + averagex*ttl, TargetInfo.Position.y + averagey*ttl, TargetInfo.Position.z + averagez*ttl
-	return x,y,z
+	return TargetInfo.Position.x + averagex*ttl, TargetInfo.Position.y + averagey*ttl, TargetInfo.Position.z + averagez*ttl
+end
+
+function MissileNavigationPrediction(I, TargetInfo, TimeToImpact)
+	local ttl = Mathf.Min(MaxLookaheadTime, TimeToImpact)
+	return TargetInfo.Position.x + TargetInfo.Velocity.x*ttl, TargetInfo.Position.y + TargetInfo.Velocity.y*ttl, TargetInfo.Position.z + TargetInfo.Velocity.z*ttl
 end
 
 function AverageTargetVelocity(TargetInfo)
@@ -143,19 +142,19 @@ function AverageTargetVelocity(TargetInfo)
 	end
 end
 
-function AimpointUpdate(I, TIndex, MIndex, Target)
+function AimpointUpdate(I, TIndex, MIndex, Target, Interceptor)
 	local Missile = I:GetLuaControlledMissileInfo(TIndex, MIndex)
-	if I:IsLuaControlledMissileAnInterceptor(TIndex, MIndex) then
-		Target = Warnings[ActiveInterceptorTargets[Missile.Id]]
-		I:SetLuaControlledMissileInterceptorStandardGuidanceOnOff(TIndex, MIndex, false)
-	else
-		Target = Targets[ActiveMissileTargets[Missile.Id]]
-	end
+
 	if Target ~= nil then
-		local x,y,z = TargetNavigationPrediction(I,Target, EstimateTimeToImpact(I,Target,Missile))
-		I:Log(x)
+		local x,y,z = nil
+		if Interceptor then 
+			x,y,z = MissileNavigationPrediction(I, Target, EstimateTimeToImpact(I,Target,Missile))
+		else
+			x,y,z = TargetNavigationPrediction(I,Target, EstimateTimeToImpact(I,Target,Missile))
+		end
 		I:SetLuaControlledMissileAimPoint(TIndex, MIndex, x, y, z)
-		if Vector3.Distance(Missile.Position, Target.Position) < 10 then
+		-- only detonate for near misses on non-interceptors	
+		if Vector3.Distance(Missile.Position, Target.Position) < 10 and not Interceptor then
 			distance = Vector3.Distance(Target.Position, Missile.Position)
 			if ActiveMissileDistance[Missile.Id] ~= nil and distance > ActiveMissileDistance[Missile.Id] then
 				I:DetonateLuaControlledMissile(TIndex, MIndex)
@@ -168,15 +167,17 @@ end
 function Update(I)
 	Targets = {}
 	UpdateTargetList(I)
-	UpdateTargetLocations(I, Targets)
 	Warnings = UpdateMissileWarnings(I)
+	UpdateTargetLocations(I, Targets)
 	AssignMissileTargets(I)
+
 	for i=0, I:GetLuaTransceiverCount(), 1 do
 		for o=0, I:GetLuaControlledMissileCount(i), 1 do
 			if I:IsLuaControlledMissileAnInterceptor(i,o) then
-				AimpointUpdate(I, i, o, ActiveInterceptorTargets[I:GetLuaControlledMissileInfo(i,o)].Id)
+				I:SetLuaControlledMissileInterceptorStandardGuidanceOnOff(i,o, false)
+				AimpointUpdate(I, i, o, ActiveInterceptorTargets[I:GetLuaControlledMissileInfo(i,o).Id], true)
 			else
-				AimpointUpdate(I, i, o, Targets[ActiveMissileTargets[I:GetLuaControlledMissileInfo(i,o).Id]])
+				AimpointUpdate(I, i, o, Targets[ActiveMissileTargets[I:GetLuaControlledMissileInfo(i,o).Id]], false)
 			end
 		end
 	end
