@@ -36,34 +36,39 @@ function AssignHydrofoilAxes(I)
 end
 
 function BalanceRoll(I, axes)
-	-- roll to right counts down from 360, to left counts up from 0
-	roll = I:GetConstructRoll()
-	if roll > 180 then
-		roll = -1.0 * math.abs(360-roll)
+    -- roll to right counts down from 360, to left counts up from 0
+	vel_vector = I:GetForwardsVelocityMagnitude()
+	if vel_vector >=0 then
+		vel_vector = 1
+	else
+		vel_vector = -1
 	end
-	for a=0, 3, 1 do
-		--for each table
-		for i=0, table.getn(axes[a]), 1 do
-			--set each hydrofoil to the appropriate angle multiplied by the appropriate mod
-			if a%2 == 1 then
-				mod = -1
-			else
-				mod = 1
-			end
-			
-			I:Component_SetFloatLogic(8, axes[a][i], mod * roll * 4)
-		end
-	end
+    roll = I:GetConstructRoll()
+    if roll > 180 then
+
+        roll = -1.0 * math.abs(360.0-roll)
+    end
+    for a=0, 3, 1 do
+        --for each table
+        for i=1, table.getn(axes[a]), 1 do
+            --set each hydrofoil to the appropriate angle multiplied by the appropriate mod
+            if a%2 == 1 then
+                mod = -1
+            else
+ 
+                mod = 1
+            end
+            I:Component_SetFloatLogic(8, axes[a][i], mod * vel_vector * roll * 4)
+        end
+    end
 end
-			
-		
 
 
 function Update(I)
-	if HydrofoilCount ~= I:Component_GetCount(8) then
-		HydrofoilAxes = AssignHydrofoilAxes(I)
-		HydrofoilCount = I:Component_GetCount(8)
-	end
+    if HydrofoilCount ~= I:Component_GetCount(8) then
+        HydrofoilAxes = AssignHydrofoilAxes(I)
+        HydrofoilCount = I:Component_GetCount(8)
+    end
 
-	AttitudeControl(I)
+    AttitudeControl(I)
 end
