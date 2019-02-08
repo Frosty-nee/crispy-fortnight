@@ -37,15 +37,9 @@ end
 
 function BalanceRoll(I, axes)
     -- roll to right counts down from 360, to left counts up from 0
-	vel_vector = I:GetForwardsVelocityMagnitude()
-	if vel_vector >=0 then
-		vel_vector = 1
-	else
-		vel_vector = -1
-	end
+	vel_vector = math.sign(I:GetForwardsVelocityMagnitude())
     roll = I:GetConstructRoll()
     if roll > 180 then
-
         roll = -1.0 * math.abs(360.0-roll)
     end
     for a=0, 3, 1 do
