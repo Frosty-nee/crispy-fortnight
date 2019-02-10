@@ -1,6 +1,8 @@
 --config
 --set this to the subconstruct ID of the spin block you place to control heading
 heading_spinner_id = 5
+--how quickly steering input will be saturated 
+steering_sensitivity = 10
 
 --setup
 HydrofoilCount = 0
@@ -50,7 +52,6 @@ function BalanceRoll(I, axes)
             if a%2 == 1 then
                 mod = -1
             else
- 
                 mod = 1
             end
             I:Component_SetFloatLogic(8, axes[a][i], mod * vel_vector * roll * 4)
@@ -77,10 +78,11 @@ function MaintainHeading(I)
 	if Mathf.Sign(I:GetForwardsVelocityMagnitude()) < 0 then
 		direction = direction * -1
 	end
+	magnitude = Mathf.Pow(magnitude/180 * steering_sensitivity, 1.8)
 	if direction > 0 then
-		I:RequestControl(0, 1, magnitude/180)
+		I:RequestControl(0, 1, magnitude)
 	else
-		I:RequestControl(0,0, magnitude/180)
+		I:RequestControl(0,0, magnitude)
 	end
 end
 
